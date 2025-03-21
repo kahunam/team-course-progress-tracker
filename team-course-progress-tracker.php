@@ -148,16 +148,15 @@ class Team_Course_Progress_Tracker {
             return false;
         }
 
-        // Get teams where user is an owner or manager
-        $teams = wc_memberships_for_teams_get_teams(
-            $current_user_id,
-            array(
-                'role' => array('owner', 'manager'),
-                'status' => 'active',
-            )
-        );
-        
-        // If user has any teams as owner or manager, return true
+		// Get teams where user is an owner or manager
+		$teams = wc_memberships_for_teams_get_teams(
+			$current_user_id,
+			array(
+				'role' => array( 'owner', 'manager' ),
+			)
+		);
+
+		// If user has any teams as owner or manager, return true
         return !empty($teams);
     }
 
@@ -203,21 +202,21 @@ class Team_Course_Progress_Tracker {
 
     /**
      * Get all teams managed by a user
-     */
-    public function get_managed_teams($user_id) {
-        // Get teams where user is an owner or manager
-        if (function_exists('wc_memberships_for_teams_get_teams')) {
-            return wc_memberships_for_teams_get_teams(
-                $user_id,
-                array(
-                    'role' => array('owner', 'manager'),
-                    'status' => 'active',
-                )
-            );
-        }
-        
-        return array();
-    }
+    */
+   public function get_managed_teams( $user_id ) {
+	   // Get teams where user is an owner or manager
+	   if ( function_exists( 'wc_memberships_for_teams_get_teams' ) ) {
+		   $teams = wc_memberships_for_teams_get_teams(
+			   $user_id,
+			   array(
+				   'role' => array( 'owner', 'manager' ),
+			   )
+		   );
+		   return $teams;
+	   }
+
+	   return array();
+   }
 
     /**
      * Render team progress dashboard
@@ -466,37 +465,47 @@ class Team_Course_Progress_Tracker {
      */
     public function get_team_progress_data($team) {
         $team_id = $team->get_id();
-        $team_members = $team->get_members();
-        $member_count = count($team_members);
-        
-        // Get all courses
-        $courses = array();
-        $course_args = array(
-            'post_type' => 'course',
-            'posts_per_page' => -1,
-            'post_status' => 'publish',
-        );
-        $course_query = new WP_Query($course_args);
-        
-        if ($course_query->have_posts()) {
-            while ($course_query->have_posts()) {
-                $course_query->the_post();
-                $course_id = get_the_ID();
-                
-                $courses[$course_id] = array(
-                    'id' => $course_id,
-                    'title' => get_the_title(),
-                    'permalink' => get_permalink(),
-                    'enrolled_members' => 0,
-                    'completed_members' => 0,
-                    'total_progress' => 0,
-                    'members_progress' => array(),
-                );
-            }
-        }
-        wp_reset_postdata();
-        
-        // Initialize member data
+		$team_members = wc_memberships_for_teams_get_team_members( $team_id );
+		$member_count = count( $team_members );
+
+		// Get the membership plan ID
+		$plan_id = $team->post_parent;
+
+		// Get all courses for the membership plan
+		$courses = array();
+		$course_args = array(
+			'post_type'      => 'course',
+			'posts_per_page' => -1,
+			'post_status'    => 'publish',
+			'meta_query'     => array(
+				array(
+					'key'     => '_wc_memberships_restrict_content_plans',
+					'value'   => $plan_id,
+					'compare' => 'LIKE',
+				),
+			),
+		);
+		$course_query = new WP_Query( $course_args );
+
+		if ( $course_query->have_posts() ) {
+			while ( $course_query->have_posts() ) {
+				$course_query->the_post();
+				$course_id = get_the_ID();
+
+				$courses[ $course_id ] = array(
+					'id'             => $course_id,
+					'title'          => get_the_title(),
+					'permalink'      => get_permalink(),
+					'enrolled_members' => 0,
+					'completed_members' => 0,
+					'total_progress'   => 0,
+					'members_progress' => array(),
+				);
+			}
+		}
+		wp_reset_postdata();
+
+		// Initialize member data
         $member_data = array();
         foreach ($team_members as $member) {
             $user_id = $member->ID;
